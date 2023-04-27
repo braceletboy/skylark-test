@@ -15,6 +15,7 @@ import yaml
 from main import main
 from util import get_summary_dir
 
+
 def eval_str(x):
     return eval(x)
 
@@ -55,7 +56,7 @@ if __name__ == '__main__':
                         in the data loader.')
     parser.add_argument('--labels', nargs='+', default=[0, 1, 2, 3, 4],
                         type=int, help='The labels thar mysampler should use\
-                        for training.')
+                        for first task. The rest is for the second task')
 
     # optimizer flags
     parser.add_argument('--optimizer', default='adam', type=str,
@@ -106,7 +107,11 @@ if __name__ == '__main__':
 
     # model flags
     parser.add_argument('--cnn_config', type=eval_str, help='The config of '
-       'the convolutional network ')
+                        'the convolutional network ')
+    parser.add_argument('--memory_embed', type=int, help='The size of the '
+                        'memory vectors')
+    parser.add_argument('--num_classes', type=int, help='The number of '
+                        'classes in out dataset')
 
     # parse the arguments
     args = parser.parse_args()
@@ -133,6 +138,9 @@ if __name__ == '__main__':
 
     # get the directory for storing the summary logs
     args.summary_dir = get_summary_dir(args)
+
+    # model addtional args
+    args.controller_embed = args.cnn_config[-1][1]
 
     # run the main function
     main(args, network_definition)

@@ -20,6 +20,7 @@ from util import (
     save_best_model,
 )
 from sampler import MyMnistSampler
+from itertools import chain
 
 
 _CHKPNT_IDX = 0  # points to the checkpoint to be created/overwritten
