@@ -11,7 +11,7 @@ The following is a legend of the short forms used in this file:
     W, W' - width
     R - no. of reads
     Wr - no. of writes
-    T - no. of tasks
+    E - no. of memory entries
     M - memory entry size
     Cl - no. of classes
 
@@ -42,8 +42,9 @@ class MemoryAugmentedCNN(nn.Module):
         1. Controller: The controller is a convolutional neural network that
                        extracts the features required. The controller generates
                        keys for reading and writing
+
         2. Memory Matrix: This external memory matrix stores the information
-        about the various tasks
+                          about the various tasks
 
         [1]: https://arxiv.org/pdf/1605.06065.pdf
     '''
@@ -68,9 +69,11 @@ class MemoryAugmentedCNN(nn.Module):
             args.feat_size, self.memory_size
         )
         self.external_memory = torch.Tensor(
-            self.args.num_tasks, self.memory_size  # T,M
+            self.args.num_entries, self.memory_size  # E,M
         )
-        self.sigmoid_gate = nn.Parameter(torch.zeros(self.args.num_tasks))  # T
+        self.sigmoid_gate = nn.Parameter(
+            torch.zeros(self.args.num_entries)  # E
+        )
 
         self.conv_size = args.feat_size
         self.conv_channels = args.conv_config[-1][1]
@@ -79,7 +82,7 @@ class MemoryAugmentedCNN(nn.Module):
         )
         self.output_layer = nn.Linear(
             self.num_conv_features + self.num_reads*self.memory_size,
-            self.args.num_tasks
+            self.args.num_classes
         )
 
         self._initialize_weights()  # initialize the attention weights
@@ -87,7 +90,7 @@ class MemoryAugmentedCNN(nn.Module):
     def _initialize_weights(self,):
         '''Initialize the previous usage, read and least usage weights'''
         self.prev_read_weights = (
-            torch.ones(self.args.num_tasks)/self.args.num_tasks
+            torch.ones(self.args.num_entries)/self.args.num_entries  # uniform
         )
         self.prev_usage_weights = None
         self.prev_least_used_weights = None
@@ -141,9 +144,9 @@ class MemoryAugmentedCNN(nn.Module):
         '''
         # quickly calculate attentions and read vectors
         attentions = torch.einsum(
-            'nrm,tm->nrt', read_keys, self.external_memory  # N,R,T
+            'nrm,tm->nrt', read_keys, self.external_memory  # N,R,E
         )
-        read_weights = F.softmax(attentions, dim=-1)  # N,R,T
+        read_weights = F.softmax(attentions, dim=-1)  # N,R,E
         read_vectors = torch.einsum(
             'nrt,tm->nrm', read_weights, self.external_memory  # N,R,M
         )
@@ -172,19 +175,19 @@ class MemoryAugmentedCNN(nn.Module):
             current_write_weights = (
                 F.sigmoid(self.sigmoid_gate)*self.prev_read_weights +
                 (1-F.sigmoid(self.sigmoid_gate))*self.prev_least_used_weights
-            )  # N,R,T
+            )  # N,R,E
         else:
-            current_write_weights = self.prev_read_weights  # N,R,T
+            current_write_weights = self.prev_read_weights  # N,R,E
 
         # write to memory - here I am averaging the write weights along the R
         # dimension because it was not specified in the paper what to do with
         # the write weights when we have multiple read heads
-        actual_write_weights = current_write_weights.mean(dim=1)  # N,T
+        actual_write_weights = current_write_weights.mean(dim=1)  # N,E
         write_vectors = torch.einsum(
-            'nt,nwm->nwtm', actual_write_weights, write_keys  # N,Wr,T,M
+            'nt,nwm->nwtm', actual_write_weights, write_keys  # N,Wr,E,M
         )
 
-        # T,M - we sum over the write and batch dimensions because the update
+        # E,M - we sum over the write and batch dimensions because the update
         # needs to be done for each write head and for each sample in the batch
         write_matrix = write_vectors.sum(dim=0).sum(dim=0)
         self.external_memory = self.external_memory + write_matrix
@@ -193,17 +196,17 @@ class MemoryAugmentedCNN(nn.Module):
         if self.prev_usage_weights is not None:
             current_usage_weights = (
                 self.gamma*self.prev_usage_weights +
-                current_read_weights + current_write_weights  # N,R,T
+                current_read_weights + current_write_weights  # N,R,E
             )
         else:
             current_usage_weights = (
-                current_read_weights + current_write_weights  # N,R,T
+                current_read_weights + current_write_weights  # N,R,E
             )
         ksmallest = torch.kthvalue(
             current_usage_weights, self.num_reads, dim=-1  # scalar
         )
         current_least_used_weights = (
-            current_usage_weights <= ksmallest).int()  # N,R,T
+            current_usage_weights <= ksmallest).int()  # N,R,E
         return current_usage_weights, current_least_used_weights
 
 

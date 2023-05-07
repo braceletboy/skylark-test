@@ -46,9 +46,6 @@ if __name__ == '__main__':
     parser.add_argument('--logdir', default='./logs', type=str, help='The '
                         'directory where the logs and logging related stuff '
                         'are to be stored')
-    parser.add_argument('--num_tasks', default=2, type=int, help='The number '
-                        'of tasks we are learning in the continual learning '
-                        'framework')
 
     # optimizer flags
     parser.add_argument('--optimizer', default='adam', type=str,
@@ -112,6 +109,11 @@ if __name__ == '__main__':
                         'interpolation coefficient for usage weights')
     parser.add_argument('--input_size', type=tuple, default=(28, 28),
                         help='The size of the input images')
+    parser.add_argument('--num_entries', default=5, type=int, help='The '
+                        'number of tasks we are learning in the continual '
+                        'learning framework')
+    parser.add_argument('--num_classes', type=int, default=5,
+                        help='The number of classes in each task')
 
     # parse the arguments
     args = parser.parse_args()
