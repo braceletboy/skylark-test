@@ -20,17 +20,10 @@ from util import (
     save_best_model,
 )
 from sampler import MyMnistSampler
-from itertools import chain
 
 
 _CHKPNT_IDX = 0  # points to the checkpoint to be created/overwritten
 _CUMM_BATCH_IDX = -1  # cummulative batch index for loss graph
-
-_DATASETS = {
-    'mnist': datasets.MNIST,
-    'fashion_mnist': datasets.FashionMNIST,
-    'kmnist': datasets.KMNIST,
-}
 
 
 def train(args,
@@ -169,79 +162,30 @@ def load_dataset(args):
     @param args: The arguments provided though the script flags.
     @returns: The data loaders.
     '''
-    # mnist or mnist type dataset
-    if args.dataset in {'mnist', 'fashion_mnist', 'kmnist'}:
-        # create train dataset
-        train_dataset = _DATASETS[args.dataset](
-            args.data_folder, train=True, download=args.download_data,
-            transform=transforms.Compose([
-                transforms.RandomResizedCrop(28),
-                transforms.RandomRotation(30),
-                transforms.ToTensor(),
-                transforms.Normalize(
-                    (0.1307,), (0.3081,))
-            ])
-        )
+    # create train dataset
+    train_dataset = datasets.MNIST(
+        args.data_folder, train=True, download=args.download_data,
+        transform=transforms.Compose([
+            transforms.RandomResizedCrop(28),
+            transforms.RandomRotation(30),
+            transforms.ToTensor(),
+            transforms.Normalize(
+                (0.1307,), (0.3081,))
+        ])
+    )
 
-        # create test dataset
-        test_dataset = _DATASETS[args.dataset](
-            args.data_folder, train=False,
-            transform=transforms.Compose([
-                transforms.ToTensor(),
-                transforms.Normalize(
-                    (0.1307,), (0.3081,))
-            ])
-        )
-
-    # svhn dataset ('svhn' or 'svhn_extra')
-    elif 'svhn' in args.dataset:
-        # create train dataset
-        train_dataset = datasets.SVHN(
-            args.data_folder, split='train', download=args.download_data,
-            transform=transforms.Compose([
-                transforms.Resize([28, 28]),
-                transforms.RandomResizedCrop(28),
-                transforms.RandomRotation(30),
-                transforms.ToTensor(),
-                transforms.Normalize(
-                    (0.1307,), (0.3081,))
-            ])
-        )
-
-        if args.dataset == 'svhn_extra':
-            extra_dataset = datasets.SVHN(
-                args.data_folder, split='train', download=args.download_data,
-                transform=transforms.Compose([
-                    transforms.Resize([28, 28]),
-                    transforms.RandomResizedCrop(28),
-                    transforms.RandomRotation(30),
-                    transforms.ToTensor(),
-                    transforms.Normalize(
-                        (0.1307,), (0.3081,))
-                ])
-            )
-
-            train_dataset = torch.utils.data.ConcatDataset([train_dataset,
-                                                            extra_dataset])
-
-        # create test dataset
-        test_dataset = datasets.SVHN(
-            args.data_folder, split='test', download=args.download_data,
-            transform=transforms.Compose([
-                transforms.Resize([28, 28]),
-                transforms.ToTensor(),
-                transforms.Normalize(
-                    (0.1307,), (0.3081,))
-            ])
-        )
-    else:
-        raise NotImplementedError('Given dataset is not supported.')
+    # create test dataset
+    test_dataset = datasets.MNIST(
+        args.data_folder, train=False,
+        transform=transforms.Compose([
+            transforms.ToTensor(),
+            transforms.Normalize(
+                (0.1307,), (0.3081,))
+        ])
+    )
 
     # create the sampler for training
-    if args.sampler == 'mysampler':
-        train_sampler = MyMnistSampler(args.labels, train_dataset)
-    else:
-        raise NotImplementedError('Given sampler is not yet supported.')
+    train_sampler = MyMnistSampler(args.labels, train_dataset)
 
     # create train dataloader
     train_loader = torch.utils.data.DataLoader(
@@ -253,11 +197,7 @@ def load_dataset(args):
         pin_memory=args.pin_memory,
     )
 
-    # create the sampler for testing
-    if args.sampler == 'mysampler':
-        test_sampler = MyMnistSampler(args.labels, test_dataset)
-    else:
-        raise NotImplementedError('Given sampler is not yet supported.')
+    test_sampler = MyMnistSampler(args.labels, test_dataset)
 
     # create test dataloader
     test_loader = torch.utils.data.DataLoader(
@@ -271,99 +211,94 @@ def load_dataset(args):
     return {'train': train_loader, 'test': test_loader}
 
 
-def main(args, network_definition):
+def main(args):
     '''
     The main function that gets executed when the script is run.
     '''
     writer = SummaryWriter(log_dir=args.summary_dir)
 
-    if args.task == 'classification':
-        model = MemoryAugmentedCNN(network_definition).to(
-            args.device)
-        data_loaders = load_dataset(args)
+    model = MemoryAugmentedCNN(args).to(
+        args.device)
+    data_loaders = load_dataset(args)
 
-        # set optimizer
-        if args.optimizer == 'adam':
-            optimizer_kwargs = {'lr': args.lr,
-                                'betas': args.betas,
-                                'eps': args.eps,
-                                'weight_decay': args.weight_decay,
-                                'amsgrad': args.amsgrad}
-            default_kwargs = {'lr': 0.001,
-                              'betas': (0.9, 0.999),
-                              'eps': 1e-8,
-                              'weight_decay': 0,
-                              'amsgrad': False}
+    # set optimizer
+    if args.optimizer == 'adam':
+        optimizer_kwargs = {'lr': args.lr,
+                            'betas': args.betas,
+                            'eps': args.eps,
+                            'weight_decay': args.weight_decay,
+                            'amsgrad': args.amsgrad}
+        default_kwargs = {'lr': 0.001,
+                          'betas': (0.9, 0.999),
+                          'eps': 1e-8,
+                          'weight_decay': 0,
+                          'amsgrad': False}
 
-            # set defaults to values not provided
-            optimizer_kwargs = set_defaults(optimizer_kwargs,
-                                            default_kwargs)
-            optimizer = torch.optim.Adam(model.parameters(),
-                                         **optimizer_kwargs)
-        else:
-            raise NotImplementedError('Given optimizer is not yet\
-                                          supported.')
+        # set defaults to values not provided
+        optimizer_kwargs = set_defaults(optimizer_kwargs,
+                                        default_kwargs)
+        optimizer = torch.optim.Adam(model.parameters(),
+                                     **optimizer_kwargs)
+    else:
+        raise NotImplementedError('Given optimizer is not yet\
+                                      supported.')
 
-        # set lr scheduler
-        if args.lr_scheduler == 'steplr':
-            if args.step_size is None:
-                raise Exception('--step_size is required.')
-            scheduler_kwargs = {'step_size': args.step_size,
-                                'gamma': args.gamma,
-                                'last_epoch': args.last_epoch}
-            default_kwargs = {'gamma': 0.1, 'last_epoch': -1}
+    # set lr scheduler
+    if args.lr_scheduler == 'steplr':
+        if args.step_size is None:
+            raise Exception('--step_size is required.')
+        scheduler_kwargs = {'step_size': args.step_size,
+                            'gamma': args.gamma,
+                            'last_epoch': args.last_epoch}
+        default_kwargs = {'gamma': 0.1, 'last_epoch': -1}
 
-            # set defaults to the values not provided.
-            scheduler_kwargs = set_defaults(scheduler_kwargs,
-                                            default_kwargs)
-            scheduler = torch.optim.lr_scheduler.StepLR(optimizer,
-                                                        **scheduler_kwargs)
-        else:
-            raise NotImplementedError('Given learning rate scheduler is\
-                                          not yet supported.')
+        # set defaults to the values not provided.
+        scheduler_kwargs = set_defaults(scheduler_kwargs,
+                                        default_kwargs)
+        scheduler = torch.optim.lr_scheduler.StepLR(optimizer,
+                                                    **scheduler_kwargs)
+    else:
+        raise NotImplementedError('Given learning rate scheduler is\
+                                      not yet supported.')
 
-        # set loss layer
-        if args.loss == '??':
-            loss_layer = ??
-        else:
-            raise NotImplementedError('Given loss layer is not yet\
-                                          supported.')
+    # set loss layer - classfication task
+    loss_layer = nn.CrossEntropyLoss()
 
-        # resume training
-        global _CHKPNT_IDX
-        if args.resume:
-            path = os.path.join(args.summary_dir, 'latest_checkpoint.tar')
-            latest_checkpoint = torch.load(path, args.device)
-            model.load_state_dict(
-                latest_checkpoint['model_state_dict'])
-            optimizer.load_state_dict(
-                latest_checkpoint['optimizer_state_dict'])
-            _CHKPNT_IDX = latest_checkpoint['checkpoint_idx']
+    # resume training
+    global _CHKPNT_IDX
+    if args.resume:
+        path = os.path.join(args.summary_dir, 'latest_checkpoint.tar')
+        latest_checkpoint = torch.load(path, args.device)
+        model.load_state_dict(
+            latest_checkpoint['model_state_dict'])
+        optimizer.load_state_dict(
+            latest_checkpoint['optimizer_state_dict'])
+        _CHKPNT_IDX = latest_checkpoint['checkpoint_idx']
 
-        # load checkpoint
-        elif args.load_checkpoint is not None:
-            checkpoint = torch.load(args.load_checkpoint, args.device)
-            model.load_state_dict(checkpoint['model_state_dict'])
-            optimizer.load_state_dict(checkpoint['optimizer_state_dict'])
-            _CHKPNT_IDX = checkpoint['checkpoint_idx']
+    # load checkpoint
+    elif args.load_checkpoint is not None:
+        checkpoint = torch.load(args.load_checkpoint, args.device)
+        model.load_state_dict(checkpoint['model_state_dict'])
+        optimizer.load_state_dict(checkpoint['optimizer_state_dict'])
+        _CHKPNT_IDX = checkpoint['checkpoint_idx']
 
-        # model learning
-        for epoch in tqdm(range(1, args.num_epochs+1),
-                          desc='Epoch Number'):
-            train_metrics = train(args,
-                                  model,
-                                  data_loaders['train'],
-                                  optimizer,
-                                  loss_layer,
-                                  writer,
-                                  epoch)
-            test_metrics = test(args,
-                                model,
-                                data_loaders['test'],
-                                loss_layer,
-                                writer,
-                                epoch)
-            scheduler.step()
+    # model learning
+    for epoch in tqdm(range(1, args.num_epochs+1),
+                      desc='Epoch Number'):
+        train_metrics = train(args,
+                              model,
+                              data_loaders['train'],
+                              optimizer,
+                              loss_layer,
+                              writer,
+                              epoch)
+        test_metrics = test(args,
+                            model,
+                            data_loaders['test'],
+                            loss_layer,
+                            writer,
+                            epoch)
+        scheduler.step()
 
     # close the writer
     writer.close()
