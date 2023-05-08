@@ -106,9 +106,9 @@ if __name__ == '__main__':
                         'memory vectors')
     parser.add_argument('--num_classes', type=int, help='The number of '
                         'classes in out dataset')
-    parser.add_argument('--read_heads', type=int, default=8, help='The number '
+    parser.add_argument('--read_heads', type=int, default=4, help='The number '
                         'of read heads in our controller')
-    parser.add_argument('--write_heads', type=int, default=8, help='The number'
+    parser.add_argument('--write_heads', type=int, default=2, help='The number'
                         ' of write heads in our controller')
     parser.add_argument('--gamma', type=float, default=0.99, help='The '
                         'interpolation coefficient for usage weights')
