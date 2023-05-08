@@ -47,6 +47,11 @@ if __name__ == '__main__':
                         'directory where the logs and logging related stuff '
                         'are to be stored')
 
+    # sampler flags
+    parser.add_argument('--labels', nargs='+', default=[0, 1, 2, 3, 4],
+                        type=int, help='The labels that mysampler should use '
+                        'for the current task')
+
     # optimizer flags
     parser.add_argument('--optimizer', default='adam', type=str,
                         choices=['adam'], help='The optimizer to use while '
@@ -114,6 +119,8 @@ if __name__ == '__main__':
                         'learning framework')
     parser.add_argument('--num_classes', type=int, default=5,
                         help='The number of classes in each task')
+    parser.add_argument('--no_write', action='store_true', help='Whether to '
+                        'not write')
 
     # parse the arguments
     args = parser.parse_args()

@@ -38,14 +38,6 @@ class MemoryAugmentedCNN(nn.Module):
         online. Hence, I am implementing from scratch by referring to the
         paper.
 
-        The following is a summary of my architecture:
-        1. Controller: The controller is a convolutional neural network that
-                       extracts the features required. The controller generates
-                       keys for reading and writing
-
-        2. Memory Matrix: This external memory matrix stores the information
-                          about the various tasks
-
         [1]: https://arxiv.org/pdf/1605.06065.pdf
     '''
 
@@ -116,8 +108,9 @@ class MemoryAugmentedCNN(nn.Module):
         read_vectors = read_vectors.flatten(start_dim=1)  # N,RM
 
         # writing
-        current_usage_weights, current_least_used_weights = self.write(
-            write_keys, current_read_weights)
+        if not self.args.no_write:
+            current_usage_weights, current_least_used_weights = self.write(
+                write_keys, current_read_weights)
 
         # classification output - N,Cl
         logits = self.output_layer(torch.cat((features, read_vectors), dim=-1))
