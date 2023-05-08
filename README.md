@@ -1,5 +1,8 @@
 # skylark-test
 
+**The entry point for the code is in `run.py`. The training code is in the
+function `train` and the evaluation is in the function `test` in `main.py`**
+
 My submission for the Internship Application at SkyLark Labs. The following is
 a summary of my approach:
 
@@ -9,27 +12,25 @@ a summary of my approach:
    formulation I split the dataset into two parts. One part is with labels
    0,1,2,3,4 and the other part is 5,6,7,8,9.
 3. The following is the formulation of my training methodology:
-	a. I train the MANN on the first task until convergence using the
+	1. I train the MANN on the first task until convergence using the
 	`--labels` option to specify which labels are part of the first task. If we
 	have to load a pretrained model we use the `--pretrained_model` option.
-	b. Next, I train the MANN on the second task until convergence using the
+	2. Next, I train the MANN on the second task until convergence using the
 	`--labels` option again to specify which labels are part of the second
 	task. Here, I will also use the `--pretrained_model` option to load the
 	model from the previous task. This leads to trasfer of learning.
 	Additionally, I will also use the `--no_write` option. This allows us to
 	only train the weights of the convolutional neural network while keeping
 	the memory matrix unchanged.
-	c. Repeat steps a. and b. until no learning is happening in either of the
-	tasks - END
+	3. Repeat steps i. and ii. until no learning is happening in either of
+	the tasks - END
 
-I believe that the asymmetry in the a. and b. steps allows us to train for both
-the tasks while also overcoming catastrophic forgetting. Thus achieving
+I believe that the asymmetry in the i. and ii. steps allows us to train for
+both the tasks while also overcoming catastrophic forgetting. Thus achieving
 continual learning.
 
 The following is a schematic of my approach:
 ![Schematic of my approach](/docs/schematic.png)
-
-The entry point for the code is in 'run.py'
 
 PS: While we have used external memory matrix to address catastrophic
 forgetting, I believe we can refer to more mordern methods where tasks are
